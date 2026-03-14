@@ -1,0 +1,46 @@
+{
+    "name": "ace-grid-api",
+    "version": "0.0.1",
+    "description": "ace grid api",
+    "main": "index.js",
+    "scripts": {
+        "dev": "env-cmd tsx watch src/app.ts",
+        "build": "tsc",
+        "start": "node dist/app.js",
+        "lint": "eslint src --ext .ts",
+        "test": "jest",
+        "seed": "tsx src/scripts/seed.ts"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/bcryptjs": "^2.4.6",
+        "@types/compression": "^1.8.1",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/morgan": "^1.9.10",
+        "@types/node": "^25.5.0",
+        "env-cmd": "^11.0.0",
+        "eslint": "^10.0.3",
+        "globals": "^17.4.0",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.57.0"
+    },
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "compression": "^1.8.1",
+        "cors": "^2.8.6",
+        "express": "^5.2.1",
+        "express-rate-limit": "^8.3.1",
+        "helmet": "^8.1.0",
+        "jsonwebtoken": "^9.0.3",
+        "mongoose": "^9.3.0",
+        "morgan": "^1.10.1",
+        "zod": "^4.3.6"
+    }
+}

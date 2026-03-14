@@ -1,0 +1,23 @@
+# Build outputs
+dist/
+build/
+.next/
+out/
+web-build/
+
+# Expo
+.expo/
+expo-env.d.ts
+
+# Dependencies
+node_modules/
+
+# Turborepo cache
+.turbo/
+
+# Generated lock files (formatted by pnpm, not Prettier)
+pnpm-lock.yaml
+
+# Env files
+.env
+.env.*
