@@ -2,7 +2,11 @@
     "name": "ace-grid-api",
     "version": "0.0.1",
     "description": "ace grid api",
-    "main": "index.js",
+    "main": "dist/app.js",
+    "engines": {
+        "node": ">=24.14.0",
+        "npm": ">=11.9.0"
+    },
     "scripts": {
         "dev": "env-cmd tsx watch src/app.ts",
         "prod": "env-cmd -f .env.production tsx watch src/app.ts",
