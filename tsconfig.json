@@ -1,5 +1,9 @@
 {
     "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["src/*"]
+        },
         /* Base Options: */
         "esModuleInterop": true,
         "skipLibCheck": true,
@@ -19,5 +23,6 @@
         /* If your code doesn't run in the DOM: */
         "lib": ["es2022"]
     },
-    "exclude": ["node_modules"]
+    "include": ["src/**/*"],
+    "exclude": ["node_modules", "dist"]
 }

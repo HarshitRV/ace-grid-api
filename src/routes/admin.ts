@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { authGuard, adminGuard, type AuthRequest } from "../middleware/authGuard.js";
-import { Course } from "../models/Course.js";
-import { Exam } from "../models/Exam.js";
-import { Question } from "../models/Question.js";
+import { authGuard, adminGuard, type AuthRequest } from "@/middleware/authGuard.js";
+import { Course } from "@/models/Course.js";
+import { Exam } from "@/models/Exam.js";
+import { Question } from "@/models/Question.js";
 
 export const adminRouter = Router();
 adminRouter.use(authGuard, adminGuard);

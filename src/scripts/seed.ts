@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import { Course } from "../models/Course.js";
-import { Exam } from "../models/Exam.js";
-import { Question } from "../models/Question.js";
-import { User } from "../models/User.js";
+import { Course } from "@/models/Course.js";
+import { Exam } from "@/models/Exam.js";
+import { Question } from "@/models/Question.js";
+import { User } from "@/models/User.js";
 
-import { appConfig } from "../config/app-config.js";
+import { appConfig } from "@/config/app-config.js";
 
 const FREE_COUNT = appConfig.env.FREE_QUESTIONS_COUNT;
 

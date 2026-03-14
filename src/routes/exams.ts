@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { Exam } from "../models/Exam.js";
-import { Question } from "../models/Question.js";
-import { authGuard, type AuthRequest } from "../middleware/authGuard.js";
-import { User } from "../models/User.js";
+import { Exam } from "@/models/Exam.js";
+import { Question } from "@/models/Question.js";
+import { authGuard, type AuthRequest } from "@/middleware/authGuard.js";
+import { User } from "@/models/User.js";
 
 export const examsRouter = Router();
 

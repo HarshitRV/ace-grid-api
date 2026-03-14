@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { authGuard, type AuthRequest } from "../middleware/authGuard";
-import { Attempt } from "../models/Attempt";
-import { Exam } from "../models/Exam";
-import { Question } from "../models/Question";
+import { authGuard, type AuthRequest } from "@/middleware/authGuard.js";
+import { Attempt } from "@/models/Attempt.js";
+import { Exam } from "@/models/Exam.js";
+import { Question } from "@/models/Question.js";
 
 export const attemptsRouter = Router();
 attemptsRouter.use(authGuard);
@@ -31,7 +31,7 @@ attemptsRouter.post("/", async (req: AuthRequest, res, next) => {
         const attempt = new Attempt({
             userId: req.user!.userId,
             examId,
-            answers: questions.map((q) => ({ questionId: q._id, selectedIndex: null })),
+            answers: questions.map((q: { _id: unknown }) => ({ questionId: q._id, selectedIndex: null })),
             totalMarks: exam.totalMarks,
         });
         await attempt.save();
@@ -68,7 +68,7 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
         const questions = await Question.find({
             _id: { $in: answers.map((a) => a.questionId) },
         }).lean();
-        const correctMap = new Map(questions.map((q) => [q._id.toString(), q.correctIndex]));
+        const correctMap = new Map(questions.map((q: { _id: { toString: () => string }, correctIndex: number | null }) => [q._id.toString(), q.correctIndex]));
 
         let correct = 0;
         const processedAnswers = answers.map((a) => {

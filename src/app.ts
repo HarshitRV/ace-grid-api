@@ -4,15 +4,14 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
-
-import { connectDB } from "./utils/connectDB.js";
-import { errorHandler } from "./middleware/errorHandler.js";
-import { authRouter } from "./routes/auth.js";
-import { coursesRouter } from "./routes/courses.js";
-import { examsRouter } from "./routes/exams.js";
-import { attemptsRouter } from "./routes/attempts.js";
-import { adminRouter } from "./routes/admin.js";
-import { appConfig } from "./config/app-config.js";
+import { connectDB } from "@/utils/connectDB.js";
+import { errorHandler } from "@/middleware/errorHandler.js";
+import { authRouter } from "@/routes/auth.js";
+import { coursesRouter } from "@/routes/courses.js";
+import { examsRouter } from "@/routes/exams.js";
+import { attemptsRouter } from "@/routes/attempts.js";
+import { adminRouter } from "@/routes/admin.js";
+import { appConfig } from "@/config/app-config.js";
 
 const app = express();
 const PORT = appConfig.env.PORT;

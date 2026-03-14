@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "dev": "env-cmd tsx watch src/app.ts",
-        "build": "tsc",
+        "build": "tsc && tsc-alias",
         "start": "node dist/app.js",
         "lint": "eslint src --ext .ts",
         "test": "jest",
@@ -27,6 +27,7 @@
         "env-cmd": "^11.0.0",
         "eslint": "^10.0.3",
         "globals": "^17.4.0",
+        "tsc-alias": "^1.8.16",
         "tsx": "^4.21.0",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.57.0"

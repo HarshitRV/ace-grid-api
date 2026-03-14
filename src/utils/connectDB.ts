@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { appConfig } from "../config/app-config.js";
+import { appConfig } from "@/config/app-config.js";
 
 export async function connectDB() {
     const uri = appConfig.env.MONGODB_URI;

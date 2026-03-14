@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { Course } from "../models/Course.js";
-import { Exam } from "../models/Exam.js";
+import { Course } from "@/models/Course.js";
+import { Exam } from "@/models/Exam.js";
 
 export const coursesRouter = Router();
 
