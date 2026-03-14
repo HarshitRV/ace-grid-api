@@ -40,7 +40,7 @@ const QuestionSchema = new Schema<IQuestion>(
         },
         correctIndex: { type: Number, required: true, min: 0, max: 3 },
         explanation: { type: String },
-        isFree: { type: Boolean, default: false },
+        isFree: { type: Boolean, default: true },
         tags: [{ type: String }],
         order: { type: Number, required: true, default: 0 },
     },
