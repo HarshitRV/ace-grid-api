@@ -43,7 +43,7 @@ const QuestionBody = z.object({
         .length(4, "Exactly 4 options required"),
     correctIndex: z.number().int().min(0).max(3),
     explanation: z.string().optional(),
-    isFree: z.boolean().default(false),
+    isFree: z.boolean().default(true),
     tags: z.array(z.string()).default([]),
     order: z.number().int().nonnegative().default(0),
 });

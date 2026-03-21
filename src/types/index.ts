@@ -13,23 +13,20 @@ export const UserSchema = z.object({
 });
 export type User = z.infer<typeof UserSchema>;
 
-export const RegisterInputSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
+const AuthCredentialsSchema = z.object({
     email: z.string().email("Invalid email address"),
     password: z
         .string()
         .min(8, "Password must be at least 8 characters")
         .max(64, "Password must be at most 64 characters"),
 });
+
+export const RegisterInputSchema = AuthCredentialsSchema.extend({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+});
 export type RegisterInput = z.infer<typeof RegisterInputSchema>;
 
-export const LoginInputSchema = z.object({
-    email: z.string().email(),
-    password: z
-        .string()
-        .min(8, "Password must be at least 8 characters")
-        .max(16, "Password must be at most 16 characters"),
-});
+export const LoginInputSchema = AuthCredentialsSchema;
 export type LoginInput = z.infer<typeof LoginInputSchema>;
 
 export const AuthResponseSchema = z.object({
@@ -153,7 +150,7 @@ export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 export const envSchema = z.object({
     PORT: z.string().optional().default("3000"),
-    MONGODB_URI: z.string().optional().default("mongodb://localhost:27017/prep-ui"),
+    MONGODB_URI: z.string().optional().default("mongodb://localhost:27017/ace-grid"),
     JWT_SECRET: z.string(),
     JWT_EXPIRES_IN: z.string(),
     FREE_QUESTIONS_COUNT: z.coerce.number().int().nonnegative(),
