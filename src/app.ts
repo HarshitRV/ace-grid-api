@@ -17,6 +17,7 @@ const app = express();
 const PORT = appConfig.env.PORT;
 
 // ── Security & Middleware ─────────────────────────────────────────────────────
+app.set("trust proxy", 1); // trust first proxy (needed for rate-limiter behind reverse proxy)
 app.use(helmet());
 app.use(cors({ origin: appConfig.env.CORS_ORIGIN, credentials: true }));
 app.use(compression());
