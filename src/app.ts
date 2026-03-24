@@ -6,12 +6,9 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import { connectDB } from "@/utils/connectDB.js";
 import { errorHandler } from "@/middleware/errorHandler.js";
-import { authRouter } from "@/routes/auth.js";
-import { coursesRouter } from "@/routes/courses.js";
-import { examsRouter } from "@/routes/exams.js";
-import { attemptsRouter } from "@/routes/attempts.js";
-import { adminRouter } from "@/routes/admin.js";
 import { appConfig } from "@/config/app-config.js";
+import { API_VERSIONS } from "@/config/api-versions.js";
+import { createVersionRouter } from "@/routes/createVersionRouter.js";
 
 const app = express();
 const PORT = appConfig.env.PORT;
@@ -34,12 +31,10 @@ app.use(
     })
 );
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use("/api/auth", authRouter);
-app.use("/api/courses", coursesRouter);
-app.use("/api/exams", examsRouter);
-app.use("/api/attempts", attemptsRouter);
-app.use("/api/admin", adminRouter);
+// ── Versioned Routes ──────────────────────────────────────────────────────────
+for (const version of API_VERSIONS) {
+    app.use(createVersionRouter(version));
+}
 
 // Health check
 app.get("/health", (_req, res) => {
