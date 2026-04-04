@@ -50,15 +50,16 @@ export type CourseCategory = z.infer<typeof CourseCategorySchema>;
 
 export const CourseSchema = z.object({
     _id: z.string(),
+    __v: z.number(),
     title: z.string(),
     slug: z.string(),
-    description: z.string(),
+    description: z.string().optional(),
     category: CourseCategorySchema,
     tags: z.array(z.string()),
     examCount: z.number().int().nonnegative(),
-    coverImage: z.string().url().optional(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    coverImage: z.url().optional(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
 });
 export type Course = z.infer<typeof CourseSchema>;
 
@@ -126,11 +127,18 @@ export const AttemptSchema = z.object({
 export type Attempt = z.infer<typeof AttemptSchema>;
 
 export const SubmitAttemptInputSchema = z.object({
-    answers: z.array(AnswerSchema),
+    answers: z.array(AnswerSchema).min(1),
 });
 export type SubmitAttemptInput = z.infer<typeof SubmitAttemptInputSchema>;
 
 // ─── API Responses ────────────────────────────────────────────────────────────
+
+export const PaginationSchema = z.object({
+    page: z.number().int().min(1),
+    pageSize: z.number().int().nonnegative(),
+    totalItems: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+});
 
 export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
     z.object({
@@ -139,12 +147,20 @@ export const PaginatedResponseSchema = <T extends z.ZodTypeAny>(itemSchema: T) =
         page: z.number(),
         limit: z.number(),
         totalPages: z.number(),
+        pagination: PaginationSchema,
     });
 
+export const CoursesResponseSchema = PaginatedResponseSchema(CourseSchema);
+export type CoursesResponse = z.infer<typeof CoursesResponseSchema>;
+
 export const ApiErrorSchema = z.object({
-    message: z.string(),
     statusCode: z.number(),
-    errors: z.array(z.string()).optional(),
+    message: z.string(),
+    error: z.object({
+        code: z.string(),
+        message: z.string(),
+        details: z.unknown().optional(),
+    }),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
@@ -159,4 +175,3 @@ export const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
-

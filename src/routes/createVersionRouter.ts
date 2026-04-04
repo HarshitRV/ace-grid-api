@@ -31,12 +31,16 @@ export function createVersionRouter(apiVersion: ApiVersion): Router {
 
     // ── Mount each route under /<version>/api/<segment> ───────────────
     for (const [segment, handler] of Object.entries(apiVersion.routes)) {
+        console.log(`Loading route: /${apiVersion.version}/api/${segment}`)
+
         router.use(`/${apiVersion.version}/api/${segment}`, handler);
     }
-
+    
     // ── Legacy /api/* mount (backward compatibility) ──────────────────
     if (apiVersion.isDefault) {
         for (const [segment, handler] of Object.entries(apiVersion.routes)) {
+            console.log(`Loading legacy route: /api/${segment}`)
+
             router.use(`/api/${segment}`, handler);
         }
     }

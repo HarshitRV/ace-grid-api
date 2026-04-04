@@ -1,18 +1,36 @@
 import { Router } from "express";
+import { z } from "zod";
 import { Course } from "@/models/Course.js";
 import { Exam } from "@/models/Exam.js";
+import { sendError } from "@/utils/apiErrors.js";
 
 export const coursesRouter = Router();
+
+const ListCoursesQuerySchema = z.object({
+    category: z
+        .enum([
+            "government",
+            "engineering",
+            "medical",
+            "management",
+            "banking",
+            "language",
+            "other",
+        ])
+        .optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+});
 
 // GET /api/courses
 coursesRouter.get("/", async (req, res, next) => {
     try {
-        const { category, page = "1", limit = "20" } = req.query as Record<string, string>;
+        const { category, page, limit } = ListCoursesQuerySchema.parse(req.query);
         const filter: Record<string, unknown> = {};
         if (category) filter["category"] = category;
 
-        const pageNum = Math.max(1, parseInt(page));
-        const limitNum = Math.min(50, parseInt(limit));
+        const pageNum = page;
+        const limitNum = limit;
         const skip = (pageNum - 1) * limitNum;
 
         const [data, total] = await Promise.all([
@@ -41,6 +59,12 @@ coursesRouter.get("/", async (req, res, next) => {
             page: pageNum,
             limit: limitNum,
             totalPages: Math.ceil(total / limitNum),
+            pagination: {
+                page: pageNum,
+                pageSize: limitNum,
+                totalItems: total,
+                totalPages: Math.ceil(total / limitNum),
+            },
         });
     } catch (err) {
         next(err);
@@ -51,7 +75,7 @@ coursesRouter.get("/", async (req, res, next) => {
 coursesRouter.get("/:slug", async (req, res, next) => {
     try {
         const course = await Course.findOne({ slug: req.params["slug"] }).lean();
-        if (!course) return res.status(404).json({ message: "Course not found" });
+        if (!course) return sendError(res, 404, "NOT_FOUND", "Course not found");
 
         const exams = await Exam.find({ courseId: course._id }).select("-questionIds").lean();
 
@@ -60,3 +84,4 @@ coursesRouter.get("/:slug", async (req, res, next) => {
         next(err);
     }
 });
+
