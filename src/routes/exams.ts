@@ -1,19 +1,37 @@
 import { Router } from "express";
+import { z } from "zod";
 import { Exam } from "@/models/Exam.js";
 import { Question } from "@/models/Question.js";
 import { authGuard, type AuthRequest } from "@/middleware/authGuard.js";
 import { User } from "@/models/User.js";
+import { sendError } from "@/utils/apiErrors.js";
 
 export const examsRouter = Router();
+
+const ListExamsQuerySchema = z.object({
+    courseId: z.string().optional(),
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+});
 
 // GET /api/exams?courseId=xxx
 examsRouter.get("/", async (req, res, next) => {
     try {
-        const { courseId } = req.query as { courseId?: string };
+        const { courseId, page, limit } = ListExamsQuerySchema.parse(req.query);
+        const shouldPaginate = page !== undefined || limit !== undefined;
+        const pageNum = page ?? 1;
+        const limitNum = limit ?? 20;
+        const skip = (pageNum - 1) * limitNum;
         const filter: Record<string, unknown> = {};
         if (courseId) filter["courseId"] = courseId;
 
-        const exams = await Exam.find(filter).select("-questionIds").lean();
+        const total = await Exam.countDocuments(filter);
+        let examsQuery = Exam.find(filter).select("-questionIds");
+        if (shouldPaginate) {
+            examsQuery = examsQuery.skip(skip).limit(limitNum);
+        }
+
+        const exams = await examsQuery.lean();
 
         // Annotate with question stats
         const examIds = exams.map((e) => e._id);
@@ -40,7 +58,22 @@ examsRouter.get("/", async (req, res, next) => {
             freeQuestionCount: statsMap.get(e._id.toString())?.free ?? 0,
         }));
 
-        return res.json({ data: examsWithStats });
+        const pageSize = shouldPaginate ? limitNum : total === 0 ? 1 : total;
+        const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+
+        return res.json({
+            data: examsWithStats,
+            total,
+            page: pageNum,
+            limit: shouldPaginate ? limitNum : total,
+            totalPages,
+            pagination: {
+                page: pageNum,
+                pageSize: shouldPaginate ? limitNum : total,
+                totalItems: total,
+                totalPages,
+            },
+        });
     } catch (err) {
         next(err);
     }
@@ -50,7 +83,7 @@ examsRouter.get("/", async (req, res, next) => {
 examsRouter.get("/:id", authGuard, async (req: AuthRequest, res, next) => {
     try {
         const exam = await Exam.findById(req.params["id"]).lean();
-        if (!exam) return res.status(404).json({ message: "Exam not found" });
+        if (!exam) return sendError(res, 404, "NOT_FOUND", "Exam not found");
 
         const questions = await Question.find({ examId: exam._id }).sort({ order: 1 }).lean();
 

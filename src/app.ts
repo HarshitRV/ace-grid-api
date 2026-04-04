@@ -9,6 +9,7 @@ import { errorHandler } from "@/middleware/errorHandler.js";
 import { appConfig } from "@/config/app-config.js";
 import { API_VERSIONS } from "@/config/api-versions.js";
 import { createVersionRouter } from "@/routes/createVersionRouter.js";
+import { sendError } from "@/utils/apiErrors.js";
 
 const app = express();
 const PORT = appConfig.env.PORT;
@@ -28,7 +29,14 @@ app.use(
         max: 200,
         standardHeaders: true,
         legacyHeaders: false,
-        message: { message: "Too many requests, please try again later." },
+        handler: (_req, res) => {
+            return sendError(
+                res,
+                429,
+                "RATE_LIMITED",
+                "Too many requests, please try again later."
+            );
+        },
     })
 );
 
@@ -40,6 +48,16 @@ for (const version of API_VERSIONS) {
 // Health check
 app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Route not found
+app.use((req, res) => {
+    return sendError(
+        res,
+        404,
+        "NOT_FOUND",
+        `Route not found: ${req.method} ${req.originalUrl}`
+    );
 });
 
 // ── Error Handler ─────────────────────────────────────────────────────────────

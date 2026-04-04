@@ -2,7 +2,9 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { RegisterInputSchema, LoginInputSchema } from "@/types/index.js";
 import { User } from "@/models/User.js";
-import { signToken, verifyToken } from "@/utils/jwt.js";
+import { signToken } from "@/utils/jwt.js";
+import { authGuard, type AuthRequest } from "@/middleware/authGuard.js";
+import { sendError } from "@/utils/apiErrors.js";
 
 export const authRouter = Router();
 
@@ -13,7 +15,12 @@ authRouter.post("/register", async (req, res, next) => {
 
         const existing = await User.findOne({ email: body.email });
         if (existing) {
-            return res.status(409).json({ message: "An account with this email already exists" });
+            return sendError(
+                res,
+                409,
+                "CONFLICT",
+                "An account with this email already exists"
+            );
         }
 
         const user = new User({
@@ -53,12 +60,12 @@ authRouter.post("/login", async (req, res, next) => {
 
         const user = await User.findOne({ email: body.email });
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return sendError(res, 401, "UNAUTHENTICATED", "Invalid email or password");
         }
 
         const isValid = await bcrypt.compare(body.password, user.passwordHash);
         if (!isValid) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return sendError(res, 401, "UNAUTHENTICATED", "Invalid email or password");
         }
 
         const token = signToken({
@@ -85,15 +92,10 @@ authRouter.post("/login", async (req, res, next) => {
 });
 
 // GET /api/auth/me
-authRouter.get("/me", async (req, res, next) => {
+authRouter.get("/me", authGuard, async (req: AuthRequest, res, next) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader?.startsWith("Bearer ")) {
-            return res.status(401).json({ message: "Authentication required" });
-        }
-        const payload = verifyToken(authHeader.split(" ")[1]!);
-        const user = await User.findById(payload.userId).select("-passwordHash");
-        if (!user) return res.status(404).json({ message: "User not found" });
+        const user = await User.findById(req.user!.userId).select("-passwordHash");
+        if (!user) return sendError(res, 404, "NOT_FOUND", "User not found");
         return res.json({ user });
     } catch (err) {
         next(err);

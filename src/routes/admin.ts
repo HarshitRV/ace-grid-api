@@ -4,16 +4,20 @@ import { authGuard, adminGuard, type AuthRequest } from "@/middleware/authGuard.
 import { Course } from "@/models/Course.js";
 import { Exam } from "@/models/Exam.js";
 import { Question } from "@/models/Question.js";
+import { sendError } from "@/utils/apiErrors.js";
 
 export const adminRouter = Router();
 adminRouter.use(authGuard, adminGuard);
 
 // ── Validation schemas ────────────────────────────────────────────────────────
 
-const CourseBody = z.object({
-    title: z.string().min(2),
-    slug: z.string().min(2).toLowerCase(),
-    description: z.string().min(10),
+export const CourseBody = z.object({
+    title: z.string().min(2, "Title must be at least 2 characters").max(50, "Title cannot exceed 50 characters"),
+    slug: z.string().min(2, "Slug must be at least 2 characters").regex(/^[a-z0-9-]+$/, "Slug must be lowercase and contain no spaces (use hyphens instead)").max(50, "Slug cannot exceed 50 characters"),
+    description: z.union([
+        z.string().min(10, "Description must be at least 10 characters").max(50, "Description cannot exceed 50 characters"),
+        z.literal('')
+    ]).optional(),
     category: z.enum([
         "government",
         "engineering",
@@ -23,9 +27,30 @@ const CourseBody = z.object({
         "language",
         "other",
     ]),
-    tags: z.array(z.string()).default([]),
-    coverImage: z.string().url().optional(),
+    tags: z.array(z.string().min(2, "Tag must be at least 2 characters").max(30, "Tag cannot exceed 30 characters")).optional(),
+    coverImage: z.union([
+        z.url("Invalid URL"),
+        z.literal('')
+    ]).optional(),
 });
+
+export const CoursePutBody = z.object({
+    title: z.string().min(2).max(50),
+    slug: z.string().min(2).regex(/^[a-z0-9-]+$/).max(50),
+    description: z.union([z.string().min(10).max(50), z.literal('')]),
+    category: z.enum([
+        "government",
+        "engineering",
+        "medical",
+        "management",
+        "banking",
+        "language",
+        "other",
+    ]),
+    tags: z.array(z.string().min(2).max(30)),
+    coverImage: z.union([z.url(), z.literal('')]),
+});
+
 
 const ExamBody = z.object({
     courseId: z.string(),
@@ -63,15 +88,45 @@ adminRouter.post("/courses", async (req: AuthRequest, res, next) => {
     }
 });
 
+// GET /api/admin/courses/:id
+adminRouter.get("/courses/:id", async (req: AuthRequest, res, next) => {
+    try {
+        const course = await Course.findById(req.params["id"]).lean();
+        if (!course) return sendError(res, 404, "NOT_FOUND", "Course not found");
+
+        const exams = await Exam.find({ courseId: course._id }).select("-questionIds").lean();
+
+        return res.json({ ...course, exams });
+    } catch (err) {
+        next(err);
+    }
+});
+
 // PATCH /api/admin/courses/:id
 adminRouter.patch("/courses/:id", async (req: AuthRequest, res, next) => {
     try {
         const body = CourseBody.partial().parse(req.body);
         const course = await Course.findByIdAndUpdate(req.params["id"], body, {
-            new: true,
+            returnDocument: 'after',
             runValidators: true,
         });
-        if (!course) return res.status(404).json({ message: "Course not found" });
+        if (!course) return sendError(res, 404, "NOT_FOUND", "Course not found");
+        return res.json(course);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// PUT /api/admin/courses/:id
+adminRouter.put("/courses/:id", async (req: AuthRequest, res, next) => {
+    try {
+        const body = CourseBody.parse(req.body);
+        const course = await Course.findById(req.params["id"]);
+        if (!course) return sendError(res, 404, "NOT_FOUND", "Course not found");
+
+        course.set(body)
+        await course.save();
+
         return res.json(course);
     } catch (err) {
         next(err);
@@ -82,7 +137,7 @@ adminRouter.patch("/courses/:id", async (req: AuthRequest, res, next) => {
 adminRouter.delete("/courses/:id", async (req: AuthRequest, res, next) => {
     try {
         const course = await Course.findById(req.params["id"]);
-        if (!course) return res.status(404).json({ message: "Course not found" });
+        if (!course) return sendError(res, 404, "NOT_FOUND", "Course not found");
 
         const exams = await Exam.find({ courseId: course._id }).select("_id").lean();
         const examIds = exams.map((e) => e._id);
@@ -118,7 +173,7 @@ adminRouter.patch("/exams/:id", async (req: AuthRequest, res, next) => {
             new: true,
             runValidators: true,
         });
-        if (!exam) return res.status(404).json({ message: "Exam not found" });
+        if (!exam) return sendError(res, 404, "NOT_FOUND", "Exam not found");
         return res.json(exam);
     } catch (err) {
         next(err);
@@ -129,7 +184,7 @@ adminRouter.patch("/exams/:id", async (req: AuthRequest, res, next) => {
 adminRouter.delete("/exams/:id", async (req: AuthRequest, res, next) => {
     try {
         const exam = await Exam.findById(req.params["id"]);
-        if (!exam) return res.status(404).json({ message: "Exam not found" });
+        if (!exam) return sendError(res, 404, "NOT_FOUND", "Exam not found");
 
         await Question.deleteMany({ examId: exam._id });
         await exam.deleteOne();
@@ -205,7 +260,7 @@ adminRouter.post("/questions/bulk", async (req: AuthRequest, res, next) => {
             .parse(req.body);
 
         const exam = await Exam.findById(examId);
-        if (!exam) return res.status(404).json({ message: "Exam not found" });
+        if (!exam) return sendError(res, 404, "NOT_FOUND", "Exam not found");
 
         const baseOrder = await Question.countDocuments({ examId });
         const docs = questions.map((q, i) => ({
@@ -234,7 +289,7 @@ adminRouter.patch("/questions/:id", async (req: AuthRequest, res, next) => {
             new: true,
             runValidators: true,
         });
-        if (!question) return res.status(404).json({ message: "Question not found" });
+        if (!question) return sendError(res, 404, "NOT_FOUND", "Question not found");
         return res.json(question);
     } catch (err) {
         next(err);
@@ -245,7 +300,7 @@ adminRouter.patch("/questions/:id", async (req: AuthRequest, res, next) => {
 adminRouter.delete("/questions/:id", async (req: AuthRequest, res, next) => {
     try {
         const question = await Question.findById(req.params["id"]);
-        if (!question) return res.status(404).json({ message: "Question not found" });
+        if (!question) return sendError(res, 404, "NOT_FOUND", "Question not found");
 
         await Exam.findByIdAndUpdate(question.examId, {
             $pull: { questionIds: question._id },

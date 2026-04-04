@@ -92,7 +92,7 @@ Below is a detailed list of all endpoints provided by the API.
 ### Exams (`/api/exams`)
 | Method | Endpoint | Description | Auth Required |
 | --- | --- | --- | --- |
-| `GET` | `/?courseId=...` | List basic info (without questions) for exams, optionally filtered by `courseId`. | No |
+| `GET` | `/?courseId=...&page=1&limit=20` | List basic info (without questions), optionally filtered by `courseId`. Supports optional pagination params. | No |
 | `GET` | `/:id` | Get exam details alongside questions. Automatically redacts the exact answer and explanation on non-free questions if the user hasn't purchased it. | **Yes** |
 
 ### Attempts (`/api/attempts`)
@@ -133,4 +133,18 @@ Below is a detailed list of all endpoints provided by the API.
 
 ## 🚦 Error Handling & Rate Limiting
 
-The API implements a global standardized error handler returning structured JSON with an `ApiError` format containing `message` and `statusCode`. Additionally, standard rate limiting is enforced on all connections (200 requests per 15 minutes max per IP window) to protect the DB visually using `express-rate-limit`.
+The API implements a global standardized error handler returning a uniform JSON envelope:
+
+```json
+{
+  "statusCode": 422,
+  "message": "Validation failed",
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": {}
+  }
+}
+```
+
+Additionally, standard rate limiting is enforced on all connections (200 requests per 15 minutes max per IP window) using `express-rate-limit`.

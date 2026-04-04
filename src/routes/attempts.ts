@@ -4,6 +4,7 @@ import { authGuard, type AuthRequest } from "@/middleware/authGuard.js";
 import { Attempt } from "@/models/Attempt.js";
 import { Exam } from "@/models/Exam.js";
 import { Question } from "@/models/Question.js";
+import { sendError } from "@/utils/apiErrors.js";
 
 export const attemptsRouter = Router();
 attemptsRouter.use(authGuard);
@@ -14,7 +15,7 @@ attemptsRouter.post("/", async (req: AuthRequest, res, next) => {
         const { examId } = z.object({ examId: z.string() }).parse(req.body);
 
         const exam = await Exam.findById(examId);
-        if (!exam) return res.status(404).json({ message: "Exam not found" });
+        if (!exam) return sendError(res, 404, "NOT_FOUND", "Exam not found");
 
         // Prevent multiple active attempts on the same exam
         const existing = await Attempt.findOne({
@@ -27,6 +28,14 @@ attemptsRouter.post("/", async (req: AuthRequest, res, next) => {
         }
 
         const questions = await Question.find({ examId }).sort({ order: 1 }).select("_id").lean();
+        if (questions.length === 0) {
+            return sendError(
+                res,
+                409,
+                "CONFLICT",
+                "This exam has no questions yet. Please try again later."
+            );
+        }
 
         const attempt = new Attempt({
             userId: req.user!.userId,
@@ -51,33 +60,82 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
                     questionId: z.string(),
                     selectedIndex: z.number().int().min(0).max(3).nullable(),
                 })
-            ),
+            )
+            .min(1),
         });
         const { answers } = AnswersSchema.parse(req.body);
 
         const attempt = await Attempt.findById(req.params["id"]);
-        if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+        if (!attempt) return sendError(res, 404, "NOT_FOUND", "Attempt not found");
         if (attempt.userId.toString() !== req.user!.userId) {
-            return res.status(403).json({ message: "Not authorized" });
+            return sendError(res, 403, "FORBIDDEN", "Not authorized");
         }
         if (attempt.status !== "in_progress") {
-            return res.status(400).json({ message: "Attempt already submitted" });
+            return sendError(res, 409, "CONFLICT", "Attempt already submitted");
         }
 
-        // Calculate score
+        const expectedQuestionIds = attempt.answers.map((answer) => answer.questionId.toString());
+        const expectedSet = new Set(expectedQuestionIds);
+        const incomingQuestionIds = answers.map((answer) => answer.questionId);
+        const incomingSet = new Set(incomingQuestionIds);
+
+        if (incomingSet.size !== incomingQuestionIds.length) {
+            return sendError(
+                res,
+                422,
+                "VALIDATION_ERROR",
+                "Duplicate questionId values are not allowed in answers."
+            );
+        }
+
+        const missingQuestionIds = expectedQuestionIds.filter((id) => !incomingSet.has(id));
+        const unexpectedQuestionIds = incomingQuestionIds.filter((id) => !expectedSet.has(id));
+        if (missingQuestionIds.length > 0 || unexpectedQuestionIds.length > 0) {
+            return sendError(
+                res,
+                422,
+                "VALIDATION_ERROR",
+                "Answers must contain exactly the attempt's questions.",
+                { missingQuestionIds, unexpectedQuestionIds }
+            );
+        }
+
+        // Calculate score against the attempt's original question set.
         const questions = await Question.find({
-            _id: { $in: answers.map((a) => a.questionId) },
-        }).lean();
-        const correctMap = new Map(questions.map((q: { _id: { toString: () => string }, correctIndex: number | null }) => [q._id.toString(), q.correctIndex]));
+            examId: attempt.examId,
+            _id: { $in: expectedQuestionIds },
+        })
+            .select("_id correctIndex")
+            .lean();
+        if (questions.length !== expectedSet.size) {
+            return sendError(
+                res,
+                409,
+                "CONFLICT",
+                "Attempt question set is out of sync. Start a new attempt."
+            );
+        }
+        const correctMap = new Map(
+            questions.map((q: { _id: { toString: () => string }; correctIndex: number | null }) => [
+                q._id.toString(),
+                q.correctIndex,
+            ])
+        );
+        const answersById = new Map(
+            answers.map((answer) => [answer.questionId, answer.selectedIndex] as const)
+        );
 
         let correct = 0;
-        const processedAnswers = answers.map((a) => {
-            const correctIndex = correctMap.get(a.questionId);
-            if (a.selectedIndex !== null && a.selectedIndex === correctIndex) correct++;
-            return { questionId: a.questionId, selectedIndex: a.selectedIndex };
+        const processedAnswers = attempt.answers.map((answer) => {
+            const questionId = answer.questionId.toString();
+            const selectedIndex = answersById.get(questionId) ?? null;
+            const correctIndex = correctMap.get(questionId);
+
+            if (selectedIndex !== null && selectedIndex === correctIndex) correct++;
+            return { questionId: answer.questionId, selectedIndex };
         });
 
-        const marksPerQuestion = attempt.totalMarks / answers.length;
+        const marksPerQuestion = attempt.totalMarks / expectedSet.size;
         const score = Math.round(correct * marksPerQuestion * 100) / 100;
 
         attempt.answers = processedAnswers as unknown as typeof attempt.answers;
@@ -111,9 +169,9 @@ attemptsRouter.get("/:id", async (req: AuthRequest, res, next) => {
         const attempt = await Attempt.findById(req.params["id"])
             .populate("examId", "title duration totalMarks")
             .lean();
-        if (!attempt) return res.status(404).json({ message: "Attempt not found" });
+        if (!attempt) return sendError(res, 404, "NOT_FOUND", "Attempt not found");
         if (attempt.userId.toString() !== req.user!.userId) {
-            return res.status(403).json({ message: "Not authorized" });
+            return sendError(res, 403, "FORBIDDEN", "Not authorized");
         }
         return res.json(attempt);
     } catch (err) {

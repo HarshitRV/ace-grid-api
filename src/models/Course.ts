@@ -4,7 +4,7 @@ export interface ICourse {
     _id: mongoose.Types.ObjectId;
     title: string;
     slug: string;
-    description: string;
+    description?: string;
     category:
         | "government"
         | "engineering"
@@ -23,7 +23,7 @@ const CourseSchema = new Schema<ICourse>(
     {
         title: { type: String, required: true, trim: true },
         slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
-        description: { type: String, required: true },
+        description: { type: String },
         category: {
             type: String,
             enum: [
