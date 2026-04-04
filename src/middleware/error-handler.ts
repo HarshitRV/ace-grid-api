@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { ZodError } from "zod";
-import { HttpError, sendError, statusToDefaultErrorCode } from "@/utils/apiErrors.js";
+import { HttpError, sendError, statusToDefaultErrorCode } from "@/utils/api-errors.js";
 
 export interface AppError extends Error {
     statusCode?: number;

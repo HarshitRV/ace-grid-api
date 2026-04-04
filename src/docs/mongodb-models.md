@@ -87,7 +87,7 @@ erDiagram
 ### 1. User
 
 **Collection:** `users`  
-**File:** [`src/models/User.ts`](../apps/api/src/models/User.ts)
+**File:** [`src/models/user.ts`](../apps/api/src/models/user.ts)
 
 Stores registered accounts. Passwords are **never stored in plaintext** — a Mongoose pre-save hook hashes them with
 bcrypt (12 salt rounds) automatically before writing.
@@ -126,7 +126,7 @@ classDiagram
 ### 2. Course
 
 **Collection:** `courses`  
-**File:** [`src/models/Course.ts`](../apps/api/src/models/Course.ts)
+**File:** [`src/models/course.ts`](../apps/api/src/models/course.ts)
 
 Top-level grouping for exams. A course maps to a real-world exam category (e.g. "UPSC Civil Services Prelims").
 
@@ -163,7 +163,7 @@ classDiagram
 ### 3. Exam
 
 **Collection:** `exams`  
-**File:** [`src/models/Exam.ts`](../apps/api/src/models/Exam.ts)
+**File:** [`src/models/exam.ts`](../apps/api/src/models/exam.ts)
 
 A single test within a Course (e.g. "Polity Mock Test", "JEE Kinematics Chapter Test"). Stores **references** to
 Question documents (not embedded) to avoid breaching MongoDB's 16 MB BSON document limit.
@@ -203,7 +203,7 @@ classDiagram
 ### 4. Question
 
 **Collection:** `questions`  
-**File:** [`src/models/Question.ts`](../apps/api/src/models/Question.ts)
+**File:** [`src/models/question.ts`](../apps/api/src/models/question.ts)
 
 A single MCQ item. Options are **embedded** (always exactly 4). The `correctIndex` field is **redacted at the API
 layer** for gated (non-free) questions that the user hasn't purchased.
@@ -257,7 +257,7 @@ isFree: false  → correctIndex = null, explanation = null (unless user purchase
 ### 5. Attempt
 
 **Collection:** `attempts`  
-**File:** [`src/models/Attempt.ts`](../apps/api/src/models/Attempt.ts)
+**File:** [`src/models/attempt.ts`](../apps/api/src/models/attempt.ts)
 
 Records a user's session for a specific exam. The `answers` array is **embedded** (one entry per question,
 `selectedIndex: null` until the user answers). Score is computed server-side on submit.

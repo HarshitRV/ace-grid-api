@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
-import { authGuard, type AuthRequest } from "@/middleware/authGuard.js";
-import { Attempt } from "@/models/Attempt.js";
-import { Exam } from "@/models/Exam.js";
-import { Question } from "@/models/Question.js";
-import { sendError } from "@/utils/apiErrors.js";
+import { authGuard, type AuthRequest } from "@/middleware/auth-guard.js";
+import { Attempt } from "@/models/attempt.js";
+import { Exam } from "@/models/exam.js";
+import { Question } from "@/models/question.js";
+import { sendError } from "@/utils/api-errors.js";
 
 export const attemptsRouter = Router();
 attemptsRouter.use(authGuard);
