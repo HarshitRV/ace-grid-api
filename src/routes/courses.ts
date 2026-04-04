@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { Course } from "@/models/Course.js";
-import { Exam } from "@/models/Exam.js";
-import { sendError } from "@/utils/apiErrors.js";
+import { Course } from "@/models/course.js";
+import { Exam } from "@/models/exam.js";
+import { sendError } from "@/utils/api-errors.js";
 
 export const coursesRouter = Router();
 

@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyToken } from "@/utils/jwt.js";
-import { User } from "@/models/User.js";
-import { sendError } from "@/utils/apiErrors.js";
+import { User } from "@/models/user.js";
+import { sendError } from "@/utils/api-errors.js";
 
 export interface AuthRequest extends Request {
     user?: { userId: string; email: string; role: "user" | "admin" };
