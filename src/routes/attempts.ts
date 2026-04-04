@@ -131,6 +131,7 @@ attemptsRouter.post("/", async (req: AuthRequest, res, next) => {
 // PATCH /api/attempts/:id/submit — submit answers and calculate score
 attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
     try {
+        // 1) Validate request shape at boundary.
         const AnswersSchema = z.object({
             answers: z.array(
                 z.object({
@@ -141,6 +142,7 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
         });
         const { answers } = AnswersSchema.parse(req.body);
 
+        // 2) Load attempt and enforce ownership/lifecycle guards.
         const attempt = await Attempt.findById(req.params["id"]);
         if (!attempt) return sendError(res, 404, "NOT_FOUND", "Attempt not found");
         if (attempt.userId.toString() !== req.user!.userId) {
@@ -153,7 +155,8 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
             return sendError(res, 409, "CONFLICT", "Attempt expired");
         }
 
-        // Even if DB says in_progress, verify it against current time before scoring.
+        // 3) Re-check wall-clock expiry before scoring.
+        // Even if DB still says "in_progress", it may have timed out by now.
         const exam = await Exam.findById(attempt.examId).select("duration").lean();
         if (!exam) {
             return sendError(res, 409, "CONFLICT", "Attempt exam no longer exists");
@@ -165,6 +168,8 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
             return sendError(res, 409, "CONFLICT", "Attempt expired");
         }
 
+        // 4) Validate that submitted answers map exactly to this attempt's question set.
+        // No duplicates, no missing IDs, and no unexpected IDs.
         const expectedQuestionIds = attempt.answers.map((answer) => answer.questionId.toString());
         const expectedSet = new Set(expectedQuestionIds);
         const incomingQuestionIds = answers.map((answer) => answer.questionId);
@@ -191,7 +196,7 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
             );
         }
 
-        // Calculate score against the attempt's original question set.
+        // 5) Fetch canonical correct answers for the attempt's own exam/questions.
         const questions = await Question.find({
             examId: attempt.examId,
             _id: { $in: expectedQuestionIds },
@@ -206,6 +211,10 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
                 "Attempt question set is out of sync. Start a new attempt."
             );
         }
+
+        // 6) Build lookup maps for fast scoring:
+        // - correctMap: questionId -> correctIndex
+        // - answersById: questionId -> submitted selectedIndex
         const correctMap = new Map(
             questions.map((q: { _id: { toString: () => string }; correctIndex: number | null }) => [
                 q._id.toString(),
@@ -216,6 +225,7 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
             answers.map((answer) => [answer.questionId, answer.selectedIndex] as const)
         );
 
+        // 7) Score in the stored attempt order to keep a stable persisted answer shape.
         let correct = 0;
         const processedAnswers = attempt.answers.map((answer) => {
             const questionId = answer.questionId.toString();
@@ -229,6 +239,7 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
         const marksPerQuestion = attempt.totalMarks / expectedSet.size;
         const score = Math.round(correct * marksPerQuestion * 100) / 100;
 
+        // 8) Finalize lifecycle transition: in_progress -> completed.
         attempt.answers = processedAnswers as unknown as typeof attempt.answers;
         attempt.score = score;
         attempt.status = "completed";
