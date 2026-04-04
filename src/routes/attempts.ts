@@ -9,22 +9,79 @@ import { sendError } from "@/utils/api-errors.js";
 export const attemptsRouter = Router();
 attemptsRouter.use(authGuard);
 
+const MS_PER_MINUTE = 60_000;
+
+/**
+ * Attempts expire at: startedAt + exam.duration(minutes).
+ */
+function hasAttemptExpired(startedAt: Date, durationInMinutes: number, now = new Date()): boolean {
+    const expiresAt = startedAt.getTime() + durationInMinutes * MS_PER_MINUTE;
+    return now.getTime() >= expiresAt;
+}
+
+/**
+ * Mongo duplicate-key error thrown by the unique partial index on
+ * (userId, examId, status='in_progress').
+ */
+function isDuplicateKeyError(error: unknown): error is { code: number } {
+    return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
+}
+
+/**
+ * Lazy lifecycle transition:
+ * whenever the user fetches attempt history, convert any overdue
+ * in-progress attempts to expired.
+ */
+async function expireInProgressAttemptsForUser(userId: string) {
+    const activeAttempts = await Attempt.find({ userId, status: "in_progress" })
+        .select("_id examId startedAt")
+        .lean();
+    if (activeAttempts.length === 0) return;
+
+    const examIds = [...new Set(activeAttempts.map((attempt) => attempt.examId.toString()))];
+    const exams = await Exam.find({ _id: { $in: examIds } }).select("_id duration").lean();
+    const examDurationMap = new Map(exams.map((exam) => [exam._id.toString(), exam.duration]));
+    const now = new Date();
+
+    const expiredAttemptIds = activeAttempts
+        .filter((attempt) => {
+            const duration = examDurationMap.get(attempt.examId.toString());
+            if (duration === undefined) return false;
+            return hasAttemptExpired(new Date(attempt.startedAt), duration, now);
+        })
+        .map((attempt) => attempt._id);
+
+    if (expiredAttemptIds.length === 0) return;
+
+    await Attempt.updateMany(
+        { _id: { $in: expiredAttemptIds }, status: "in_progress" },
+        { $set: { status: "expired", submittedAt: now } }
+    );
+}
+
 // POST /api/attempts — start an attempt
 attemptsRouter.post("/", async (req: AuthRequest, res, next) => {
     try {
         const { examId } = z.object({ examId: z.string() }).parse(req.body);
 
-        const exam = await Exam.findById(examId);
+        const exam = await Exam.findById(examId).select("duration totalMarks");
         if (!exam) return sendError(res, 404, "NOT_FOUND", "Exam not found");
 
-        // Prevent multiple active attempts on the same exam
+        // Reuse active attempt for this exam if it is still valid.
         const existing = await Attempt.findOne({
             userId: req.user!.userId,
             examId,
             status: "in_progress",
         });
         if (existing) {
-            return res.json(existing); // Resume existing attempt
+            // If the stored in-progress attempt is already timed out, close it first.
+            if (hasAttemptExpired(existing.startedAt, exam.duration)) {
+                existing.status = "expired";
+                existing.submittedAt = new Date();
+                await existing.save();
+            } else {
+                return res.json(existing); // Resume existing attempt
+            }
         }
 
         const questions = await Question.find({ examId }).sort({ order: 1 }).select("_id").lean();
@@ -43,9 +100,29 @@ attemptsRouter.post("/", async (req: AuthRequest, res, next) => {
             answers: questions.map((q: { _id: unknown }) => ({ questionId: q._id, selectedIndex: null })),
             totalMarks: exam.totalMarks,
         });
-        await attempt.save();
 
-        return res.status(201).json(attempt);
+        try {
+            await attempt.save();
+            return res.status(201).json(attempt);
+        } catch (error) {
+            // Two start requests can race:
+            // request A and B both see "no active attempt", then both try to insert.
+            // The unique index lets only one insert win. For the loser, fetch and return
+            // the winning in-progress attempt so the client still gets a usable response.
+            if (isDuplicateKeyError(error)) {
+                const concurrentAttempt = await Attempt.findOne({
+                    userId: req.user!.userId,
+                    examId,
+                    status: "in_progress",
+                });
+
+                if (concurrentAttempt) {
+                    return res.json(concurrentAttempt);
+                }
+            }
+
+            throw error;
+        }
     } catch (err) {
         next(err);
     }
@@ -60,8 +137,7 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
                     questionId: z.string(),
                     selectedIndex: z.number().int().min(0).max(3).nullable(),
                 })
-            )
-            .min(1),
+            ).min(1),
         });
         const { answers } = AnswersSchema.parse(req.body);
 
@@ -70,8 +146,23 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
         if (attempt.userId.toString() !== req.user!.userId) {
             return sendError(res, 403, "FORBIDDEN", "Not authorized");
         }
-        if (attempt.status !== "in_progress") {
+        if (attempt.status === "completed") {
             return sendError(res, 409, "CONFLICT", "Attempt already submitted");
+        }
+        if (attempt.status === "expired") {
+            return sendError(res, 409, "CONFLICT", "Attempt expired");
+        }
+
+        // Even if DB says in_progress, verify it against current time before scoring.
+        const exam = await Exam.findById(attempt.examId).select("duration").lean();
+        if (!exam) {
+            return sendError(res, 409, "CONFLICT", "Attempt exam no longer exists");
+        }
+        if (hasAttemptExpired(attempt.startedAt, exam.duration)) {
+            attempt.status = "expired";
+            attempt.submittedAt = new Date();
+            await attempt.save();
+            return sendError(res, 409, "CONFLICT", "Attempt expired");
         }
 
         const expectedQuestionIds = attempt.answers.map((answer) => answer.questionId.toString());
@@ -153,6 +244,9 @@ attemptsRouter.patch("/:id/submit", async (req: AuthRequest, res, next) => {
 // GET /api/attempts/me — user's attempt history
 attemptsRouter.get("/me", async (req: AuthRequest, res, next) => {
     try {
+        // Keep statuses accurate before returning list data.
+        await expireInProgressAttemptsForUser(req.user!.userId);
+
         const attempts = await Attempt.find({ userId: req.user!.userId })
             .populate("examId", "title courseId duration totalMarks")
             .sort({ createdAt: -1 })
@@ -166,14 +260,27 @@ attemptsRouter.get("/me", async (req: AuthRequest, res, next) => {
 // GET /api/attempts/:id
 attemptsRouter.get("/:id", async (req: AuthRequest, res, next) => {
     try {
-        const attempt = await Attempt.findById(req.params["id"])
-            .populate("examId", "title duration totalMarks")
-            .lean();
+        const attempt = await Attempt.findById(req.params["id"]);
         if (!attempt) return sendError(res, 404, "NOT_FOUND", "Attempt not found");
         if (attempt.userId.toString() !== req.user!.userId) {
             return sendError(res, 403, "FORBIDDEN", "Not authorized");
         }
-        return res.json(attempt);
+
+        if (attempt.status === "in_progress") {
+            // Lazy single-record expiry update on read.
+            const exam = await Exam.findById(attempt.examId).select("duration").lean();
+            if (exam && hasAttemptExpired(attempt.startedAt, exam.duration)) {
+                attempt.status = "expired";
+                attempt.submittedAt = new Date();
+                await attempt.save();
+            }
+        }
+
+        const hydratedAttempt = await Attempt.findById(req.params["id"])
+            .populate("examId", "title duration totalMarks")
+            .lean();
+
+        return res.json(hydratedAttempt);
     } catch (err) {
         next(err);
     }

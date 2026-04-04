@@ -110,7 +110,9 @@ Below is a detailed list of all endpoints provided by the API.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `POST` | `/courses` | Create a new course. |
+| `GET` | `/courses/:id` | Fetch one course by id, including exams in that course. |
 | `PATCH` | `/courses/:id` | Update an existing course (partial updates allowed). |
+| `PUT` | `/courses/:id` | Replace/update an existing course with the full payload. |
 | `DELETE` | `/courses/:id` | Delete a course. **Warning**: Cascades down and deletes nested Exams and Questions. |
 
 #### Admin Exams
