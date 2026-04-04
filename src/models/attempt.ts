@@ -47,5 +47,11 @@ const AttemptSchema = new Schema<IAttempt>(
 
 AttemptSchema.index({ userId: 1, examId: 1 });
 AttemptSchema.index({ userId: 1, status: 1 });
+// Enforce one active attempt per user+exam while still allowing
+// multiple historical attempts (completed/expired).
+AttemptSchema.index(
+    { userId: 1, examId: 1, status: 1 },
+    { unique: true, partialFilterExpression: { status: "in_progress" } }
+);
 
 export const Attempt = mongoose.model<IAttempt>("Attempt", AttemptSchema);
