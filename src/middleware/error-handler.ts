@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { HttpError, sendError, statusToDefaultErrorCode } from "@/utils/api-errors.js";
 
 export interface AppError extends Error {
@@ -10,10 +10,11 @@ export interface AppError extends Error {
 
 export function errorHandler(err: AppError, _req: Request, res: Response, _next: NextFunction) {
     if (err instanceof ZodError) {
-        return sendError(res, 422, "VALIDATION_ERROR", "Validation failed", err.flatten());
+        return sendError(res, 422, "VALIDATION_ERROR", "Validation failed", z.treeifyError(err));
     }
 
     if (err instanceof HttpError) {
+        console.log('http error')
         return sendError(res, err.statusCode, err.code, err.message, err.details);
     }
 

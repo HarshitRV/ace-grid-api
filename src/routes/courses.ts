@@ -1,87 +1,21 @@
 import { Router } from "express";
-import { z } from "zod";
-import { Course } from "@/models/course.js";
-import { Exam } from "@/models/exam.js";
-import { sendError } from "@/utils/api-errors.js";
+import { CourseRoute, GetCourseBySlugParamsSchema, ListCoursesQuerySchema } from "@/schemas/index.js";
+import { handleAsyncError } from "@/utils/handler-async-error.js";
+import { CourseController } from "@/controllers/course.controller.js";
 
 export const coursesRouter = Router();
 
-const ListCoursesQuerySchema = z.object({
-    category: z
-        .enum([
-            "government",
-            "engineering",
-            "medical",
-            "management",
-            "banking",
-            "language",
-            "other",
-        ])
-        .optional(),
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(50).default(20),
-});
+// GET v1/api/courses
+coursesRouter.route<CourseRoute>('/').get(handleAsyncError(async (req, res, _next) => {
+    const { category, page, limit } = ListCoursesQuerySchema.parse(req.query);
+    const response = await CourseController.listCourses({ category, page, limit });
+    res.status(200).json(response);
+}));
 
-// GET /api/courses
-coursesRouter.get("/", async (req, res, next) => {
-    try {
-        const { category, page, limit } = ListCoursesQuerySchema.parse(req.query);
-        const filter: Record<string, unknown> = {};
-        if (category) filter["category"] = category;
-
-        const pageNum = page;
-        const limitNum = limit;
-        const skip = (pageNum - 1) * limitNum;
-
-        const [data, total] = await Promise.all([
-            Course.find(filter).skip(skip).limit(limitNum).lean(),
-            Course.countDocuments(filter),
-        ]);
-
-        // Attach exam count
-        const courseIds = data.map((c) => c._id);
-        const examCounts = await Exam.aggregate([
-            { $match: { courseId: { $in: courseIds } } },
-            { $group: { _id: "$courseId", count: { $sum: 1 } } },
-        ]);
-        const examCountMap = new Map(
-            examCounts.map((e: { _id: string; count: number }) => [e._id.toString(), e.count])
-        );
-
-        const coursesWithCount = data.map((c) => ({
-            ...c,
-            examCount: examCountMap.get(c._id.toString()) ?? 0,
-        }));
-
-        return res.json({
-            data: coursesWithCount,
-            total,
-            page: pageNum,
-            limit: limitNum,
-            totalPages: Math.ceil(total / limitNum),
-            pagination: {
-                page: pageNum,
-                pageSize: limitNum,
-                totalItems: total,
-                totalPages: Math.ceil(total / limitNum),
-            },
-        });
-    } catch (err) {
-        next(err);
-    }
-});
-
-// GET /api/courses/:slug
-coursesRouter.get("/:slug", async (req, res, next) => {
-    try {
-        const course = await Course.findOne({ slug: req.params["slug"] }).lean();
-        if (!course) return sendError(res, 404, "NOT_FOUND", "Course not found");
-
-        const exams = await Exam.find({ courseId: course._id }).select("-questionIds").lean();
-
-        return res.json({ ...course, exams });
-    } catch (err) {
-        next(err);
-    }
-});
+// GET v1/api/courses/:slug
+coursesRouter.route<CourseRoute>('/:slug').get(handleAsyncError(async (req, res, _next) => {
+    const { slug } = GetCourseBySlugParamsSchema.parse(req.params);
+    const response = await CourseController.getCourseBySlug(slug);
+    res.status(200).json(response);
+}));
 

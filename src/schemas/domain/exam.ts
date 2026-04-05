@@ -9,8 +9,8 @@ export const ExamSchema = z.object({
     totalMarks: z.number().int().positive(),
     questionCount: z.number().int().nonnegative(),
     freeQuestionCount: z.number().int().nonnegative(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
 });
 
 export type Exam = z.infer<typeof ExamSchema>;
