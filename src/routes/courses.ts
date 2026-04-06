@@ -8,7 +8,7 @@ export const coursesRouter = Router();
 // GET v1/api/courses
 coursesRouter.route<CourseRoute>('/').get(handleAsyncError(async (req, res, _next) => {
     const { category, page, limit } = ListCoursesQuerySchema.parse(req.query);
-    const response = await CourseController.listCourses({ category, page, limit });
+    const response = await CourseController.getCourseList({ category, page, limit });
     res.status(200).json(response);
 }));
 

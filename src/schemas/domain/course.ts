@@ -8,6 +8,18 @@ export const CourseRouteSchema = z.enum([
 ]);
 export type CourseRoute = z.infer<typeof CourseRouteSchema>;
 
+export const CourseDescriptionSchema = z.union([
+    z.string().min(10, "Description must be at least 10 characters").max(50, "Description cannot exceed 50 characters"),
+    z.literal(""),
+]);
+
+export const CourseTagSchema = z
+    .string()
+    .min(2, "Tag must be at least 2 characters")
+    .max(30, "Tag cannot exceed 30 characters");
+
+export const CourseCoverImageSchema = z.union([z.url("Invalid URL"), z.literal("")]);
+
 export const CourseCategorySchema = z.enum([
     "government",
     "engineering",
@@ -24,15 +36,37 @@ export const CourseSchema = z.object({
     __v: z.number(),
     title: z.string(),
     slug: z.string(),
-    description: z.string().optional(),
+    description: CourseDescriptionSchema.optional(),
     category: CourseCategorySchema,
-    tags: z.array(z.string()),
-    examCount: z.number().int().nonnegative(),
-    coverImage: z.url().optional(),
+    tags: z.array(CourseTagSchema).optional(),
+    examCount: z.number().int().nonnegative().optional(),
+    coverImage: CourseCoverImageSchema.optional(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
 });
 export type Course = z.infer<typeof CourseSchema>;
+
+export const CourseBodySchema = z.object({
+    title: z
+        .string()
+        .min(2, "Title must be at least 2 characters")
+        .max(50, "Title cannot exceed 50 characters"),
+    slug: z
+        .string()
+        .min(2, "Slug must be at least 2 characters")
+        .regex(/^[a-z0-9-]+$/, "Slug must be lowercase and contain no spaces (use hyphens instead)")
+        .max(50, "Slug cannot exceed 50 characters"),
+    description: CourseDescriptionSchema.optional(),
+    category: CourseCategorySchema,
+    tags: z.array(CourseTagSchema).optional(),
+    coverImage: CourseCoverImageSchema.optional(),
+});
+export type AddCourseBody = z.infer<typeof CourseBodySchema>;
+export type AddCourseResponse = z.infer<typeof CourseSchema>;
+export type UpdateCourseBody = z.infer<typeof CourseBodySchema>;
+
+export const PatchCourseBodySchema = CourseBodySchema.partial();
+export type PatchCourseBody = z.infer<typeof PatchCourseBodySchema>;
 
 export const CoursesResponseSchema = PaginatedResponseSchema(CourseSchema);
 export type CoursesResponse = z.infer<typeof CoursesResponseSchema>;
@@ -74,8 +108,13 @@ export const GetCourseBySlugParamsSchema = z.object({
 });
 export type GetCourseBySlugParams = z.infer<typeof GetCourseBySlugParamsSchema>;
 
-export const GetCourseBySlugResponseSchema = z.object({
+export const GetCourseByIdParamsSchema = z.object({
+    id: z.string(),
+});
+export type GetCourseByIdParams = z.infer<typeof GetCourseByIdParamsSchema>;
+
+export const GetCourseResponseSchema = z.object({
     course: CourseSchema.omit({ examCount: true }),
     exams: z.array(ExamSchema.omit({ questionCount: true, freeQuestionCount: true })),
 });
-export type GetCourseBySlugResponse = z.infer<typeof GetCourseBySlugResponseSchema>;
+export type GetCourseResponse = z.infer<typeof GetCourseResponseSchema>;
