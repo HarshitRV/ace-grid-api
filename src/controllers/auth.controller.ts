@@ -8,6 +8,9 @@ import { signToken } from "@/utils/jwt.js";
 type UserDocument = mongoose.Document<unknown, unknown, IUser> & IUser;
 
 export abstract class AuthController {
+    /**
+     * Formats a Mongoose User document into the standard API response schema shape.
+     */
     public static formatUser(user: UserDocument): AuthUser {
         return {
             _id: user._id.toString(),
@@ -20,6 +23,9 @@ export abstract class AuthController {
         }
     }
 
+    /**
+     * Helper to consistently format the response containing both the user and their access token.
+     */
     private static formatAuthResponse(user: UserDocument, token: string): AuthResponse {
         return {
             user: this.formatUser(user),
@@ -27,6 +33,10 @@ export abstract class AuthController {
         };
     }
 
+    /**
+     * Registers a new user account and returns an auth token.
+     * Throws 409 Conflict if the email is already in use.
+     */
     public static async register(body: RegisterInput): Promise<AuthResponse> {
         const existingUser = await User.findOne({ email: body.email });
 
@@ -50,6 +60,10 @@ export abstract class AuthController {
         return this.formatAuthResponse(user, token);
     }
 
+    /**
+     * Authenticates an existing user via email and password, returning an auth token.
+     * Throws 401 Unauthenticated for invalid credentials.
+     */
     public static async login(body: LoginInput): Promise<AuthResponse> {
         const user = await User.findOne({ email: body.email });
         if (!user) {
@@ -70,6 +84,9 @@ export abstract class AuthController {
         return this.formatAuthResponse(user, token);
     }
 
+    /**
+     * Fetches details of the currently authenticated user by their ID.
+     */
     public static async getMe(userId: string): Promise<GetMeResponse> {
         const user = await User.findById(userId);
         if (!user) {

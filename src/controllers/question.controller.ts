@@ -12,6 +12,9 @@ import type { Question as QuestionType } from "@/schemas/domain/question.js";
 import { HttpError } from "@/utils/api-errors.js";
 
 export abstract class QuestionController {
+    /**
+     * Formats a raw Question document/object into the public schema format.
+     */
     private static formatQuestion(question: {
         _id: { toString(): string };
         examId: { toString(): string };
@@ -81,6 +84,9 @@ export abstract class QuestionController {
         };
     };
 
+    /**
+     * Updates an existing question. Can optionally toggle its isFree status.
+     */
     public static patchQuestion = async ({
         questionId,
         body,

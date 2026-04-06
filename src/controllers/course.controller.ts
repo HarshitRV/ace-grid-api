@@ -8,6 +8,9 @@ import { Question } from "@/models/question.js";
 type CourseDocument = ICourse & { _id: mongoose.Types.ObjectId; __v: number };
 
 export abstract class CourseController {
+    /**
+     * Formats a Mongoose Course document into the standard schema type.
+     */
     private static formatCourse(course: CourseDocument): CourseType {
         return {
             ...course,
@@ -17,6 +20,9 @@ export abstract class CourseController {
         }
     }
 
+    /**
+     * Formats a complete course response by fetching and attaching all associated exams.
+     */
     private static formatCourseResponse = async (course: CourseDocument): Promise<GetCourseResponse> => {
         const exams = await Exam.find({ courseId: course._id }).select("-questionIds").lean();
 
@@ -32,6 +38,10 @@ export abstract class CourseController {
         }
     }
 
+    /**
+     * Fetches a paginated list of courses. Can be optionally filtered by category.
+     * Computes dynamically the associated exam counts for each course.
+     */
     public static getCourseList = async ({ category, page, limit }: ListCoursesQuery): Promise<ListCoursesResponse> => {
         const filter: Record<string, unknown> = {};
         if (category) filter["category"] = category;
@@ -78,6 +88,9 @@ export abstract class CourseController {
         }
     }
 
+    /**
+     * Fetches details of a single course by its unique slug.
+     */
     public static getCourseBySlug = async (slug: string): Promise<GetCourseResponse> => {
         const course = await Course.findOne({ slug }).lean();
         if (!course) {
@@ -87,6 +100,9 @@ export abstract class CourseController {
         return this.formatCourseResponse(course);
     }
 
+    /**
+     * Fetches details of a single course by its MongoDB ID.
+     */
     public static getCourseById = async (courseId: string): Promise<GetCourseResponse> => {
         const course = await Course.findById(courseId).lean();
         if (!course) {
@@ -96,11 +112,17 @@ export abstract class CourseController {
         return this.formatCourseResponse(course);
     }
 
+    /**
+     * Creates a new course from the provided payload.
+     */
     public static addCourse = async (body: AddCourseBody): Promise<AddCourseResponse> => {
         const course = await Course.create(body)
         return this.formatCourse(course);
     }
 
+    /**
+     * Partially updates an existing course (PATCH semantics).
+     */
     public static patchCourse = async ({ courseId, body }: { courseId: string; body: PatchCourseBody }): Promise<GetCourseResponse> => {
         const course = await Course.findByIdAndUpdate(courseId, body, {
             returnDocument: "after",
@@ -114,6 +136,9 @@ export abstract class CourseController {
         return this.formatCourseResponse(course);
     }
 
+    /**
+     * Completely overwrites/replaces an existing course properties (PUT semantics).
+     */
     public static updateCourse = async ({ courseId, body }: { courseId: string; body: UpdateCourseBody }): Promise<GetCourseResponse> => {
         const course = await Course.findById(courseId);
 
@@ -127,6 +152,9 @@ export abstract class CourseController {
         return this.formatCourseResponse(course);
     }
 
+    /**
+     * Deletes a course. Safely cascades deletion down to all nested exams and their questions.
+     */
     public static deleteCourseWithRelatedEntities = async (courseId: string): Promise<void> => {
         const course = await Course.findById(courseId);
         if (!course) {

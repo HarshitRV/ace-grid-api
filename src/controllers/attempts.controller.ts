@@ -25,6 +25,9 @@ type PopulatedExamId = {
 export abstract class AttemptsController {
     private static readonly MS_PER_MINUTE = 60_000;
 
+    /**
+     * Formats a basic Mongoose Attempt document to the standard public schema format.
+     */
     public static formatAttempt = (attempt: AttemptDocument): AttemptType => {
         return {
             _id: attempt._id.toString(),
@@ -42,6 +45,9 @@ export abstract class AttemptsController {
         };
     }
 
+    /**
+     * Formats an Attempt joined with its related Exam details to the public schema format.
+     */
     private static formatPopulatedAttempt = (attempt: PopulatedAttemptLean): AttemptWithExam => ({
         _id: attempt._id.toString(),
         userId: attempt.userId.toString(),
@@ -109,6 +115,10 @@ export abstract class AttemptsController {
         );
     }
 
+    /**
+     * Starts a new exam attempt.
+     * Prevents overlapping attempts by resuming an active one if the user is already taking this exam.
+     */
     public static startAttempt = async ({ examId, userId }: { examId: string; userId: string }): Promise<StartAttemptResponse> => {
         const exam = await Exam.findById(examId).select("duration totalMarks");
 
@@ -172,6 +182,11 @@ export abstract class AttemptsController {
         }
     }
 
+    /**
+     * Handles final submission of an attempt.
+     * It guards against tampering, verifies wall-clock expiry, validates the incoming question payloads rigidly against the exam snapshot,
+     * scores the attempt out of total marks, and moves its status to "completed".
+     */
     public static submitAnswers = async ({ attemptId, userId, answers }: { attemptId: string; userId: string; answers: Answer[] }): Promise<SubmitAttemptResponse> => {
         const attempt = await Attempt.findById(attemptId);
 
@@ -277,6 +292,10 @@ export abstract class AttemptsController {
         }
     }
 
+    /**
+     * Recovers the holistic attempt history of a given user.
+     * Sweeps lazily behind-the-scenes to auto-end any sessions that have organically timed out.
+     */
     public static getAttemptsHistory = async (userId: string): Promise<GetAttemptsHistoryResponse> => {
         await this.expireInProgressAttemptsForUser(userId);
 
@@ -290,6 +309,10 @@ export abstract class AttemptsController {
         };
     }
 
+    /**
+     * Fetches the specifics of an individual attempt by ID.
+     * Will perform a lazy auto-expire verify for this specific track as well.
+     */
     public static getAttemptById = async ({ attemptId, userId }: { attemptId: string; userId: string }): Promise<GetAttemptByIdResponse> => {
         const attempt = await Attempt.findById(attemptId);
 

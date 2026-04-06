@@ -37,11 +37,17 @@ export abstract class ExamController {
         };
     }
 
+    /**
+     * Creates a new exam with an initially empty question list.
+     */
     public static createExam = async (body: AdminCreateExamBody): Promise<AdminCreateExamResponse> => {
         const exam = await Exam.create({ ...body, questionIds: [] });
         return { exam: this.formatAdminExam(exam) };
     };
 
+    /**
+     * Updates an existing exam properties.
+     */
     public static patchExam = async ({
         examId,
         body,
