@@ -13,11 +13,17 @@ export abstract class CourseController {
      */
     private static formatCourse(course: CourseDocument): CourseType {
         return {
-            ...course,
             _id: course._id.toString(),
+            __v: course.__v,
+            title: course.title,
+            slug: course.slug,
+            description: course.description,
+            category: course.category,
+            tags: course.tags,
+            coverImage: course.coverImage,
             createdAt: course.createdAt.toISOString(),
             updatedAt: course.updatedAt.toISOString(),
-        }
+        };
     }
 
     /**
@@ -116,7 +122,7 @@ export abstract class CourseController {
      * Creates a new course from the provided payload.
      */
     public static addCourse = async (body: AddCourseBody): Promise<AddCourseResponse> => {
-        const course = await Course.create(body)
+        const course = await Course.create(body);
         return this.formatCourse(course);
     }
 
@@ -131,7 +137,7 @@ export abstract class CourseController {
 
         if (!course) {
             throw new HttpError(404, "NOT_FOUND", "Course not found");
-        };
+        }
 
         return this.formatCourseResponse(course);
     }
