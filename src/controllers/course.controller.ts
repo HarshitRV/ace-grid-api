@@ -61,26 +61,35 @@ export abstract class CourseController {
             Course.countDocuments(filter),
         ]);
 
-        // Attach exam count
+        // Attach exams
         const courseIds = data.map((c) => c._id);
-        const examCounts = await Exam.aggregate([
-            { $match: { courseId: { $in: courseIds } } },
-            { $group: { _id: "$courseId", count: { $sum: 1 } } },
-        ]);
-        const examCountMap = new Map(
-            examCounts.map((e: { _id: string; count: number }) => [e._id.toString(), e.count])
-        );
+        const examsList = await Exam.find({ courseId: { $in: courseIds } })
+            .select("_id courseId title")
+            .lean();
 
-        const coursesWithCount = data.map((c) => ({
+        const courseExamsMap = new Map<string, { _id: string; title: string }[]>();
+
+        examsList.forEach(e => {
+            const courseIdStr = e.courseId.toString();
+            if (!courseExamsMap.has(courseIdStr)) {
+                courseExamsMap.set(courseIdStr, []);
+            }
+            courseExamsMap.get(courseIdStr)!.push({
+                _id: e._id.toString(),
+                title: e.title
+            });
+        });
+
+        const coursesWithExams = data.map((c) => ({
             ...c,
             _id: c._id.toString(),
             createdAt: c.createdAt.toISOString(),
             updatedAt: c.updatedAt.toISOString(),
-            examCount: examCountMap.get(c._id.toString()) ?? 0,
+            exams: courseExamsMap.get(c._id.toString()) ?? [],
         }));
 
         return {
-            data: coursesWithCount,
+            data: coursesWithExams,
             total,
             page: pageNum,
             limit: limitNum,

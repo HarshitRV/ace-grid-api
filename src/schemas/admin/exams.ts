@@ -6,10 +6,10 @@ export const AdminExamIdParamsSchema = z.object({
 export type AdminExamIdParams = z.infer<typeof AdminExamIdParamsSchema>;
 
 export const AdminCreateExamBodySchema = z.object({
-    courseId: z.string(),
+    courseId: z.string().min(1, 'Please select a course'),
     title: z.string().min(2),
     description: z.string().optional(),
-    duration: z.number().int().positive(),
+    duration: z.number().int().positive().describe('Duration in minutes'), // mins
     totalMarks: z.number().int().positive(),
 });
 export type AdminCreateExamBody = z.infer<typeof AdminCreateExamBodySchema>;

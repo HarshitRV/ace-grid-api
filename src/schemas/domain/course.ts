@@ -39,7 +39,7 @@ export const CourseSchema = z.object({
     description: CourseDescriptionSchema.optional(),
     category: CourseCategorySchema,
     tags: z.array(CourseTagSchema).optional(),
-    examCount: z.number().int().nonnegative().optional(),
+    exams: z.array(z.object({ _id: z.string(), title: z.string() })).optional(),
     coverImage: CourseCoverImageSchema.optional(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
@@ -114,7 +114,7 @@ export const GetCourseByIdParamsSchema = z.object({
 export type GetCourseByIdParams = z.infer<typeof GetCourseByIdParamsSchema>;
 
 export const GetCourseResponseSchema = z.object({
-    course: CourseSchema.omit({ examCount: true }),
+    course: CourseSchema.omit({ exams: true }),
     exams: z.array(ExamSchema.omit({ questionCount: true, freeQuestionCount: true })),
 });
 export type GetCourseResponse = z.infer<typeof GetCourseResponseSchema>;

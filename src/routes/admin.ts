@@ -23,6 +23,12 @@ export const adminRouter = Router();
 adminRouter.use(handleAsyncError(authGuard), adminGuard);
 
 // ── COURSES ───────────────────────────────────────────────────────────────────
+// GET /api/admin/courses
+adminRouter.route<AdminRoute>("/courses").get(handleAsyncError(async (req, res, _next) => {
+    const body = CourseBodySchema.parse(req.body);
+    const response = await CourseController.addCourse(body);
+    res.status(201).json(response);
+}));
 
 // POST /api/admin/courses
 adminRouter.route<AdminRoute>("/courses").post(handleAsyncError(async (req, res, _next) => {

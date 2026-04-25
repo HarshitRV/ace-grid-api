@@ -14,7 +14,6 @@ export function errorHandler(err: AppError, _req: Request, res: Response, _next:
     }
 
     if (err instanceof HttpError) {
-        console.log('http error')
         return sendError(res, err.statusCode, err.code, err.message, err.details);
     }
 
