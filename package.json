@@ -14,7 +14,8 @@
         "start": "node --env-file=.env dist/app.js",
         "lint": "eslint src --ext .ts",
         "test": "jest",
-        "seed": "tsx src/scripts/seed.ts"
+        "seed": "tsx src/scripts/seed.ts",
+        "deploy": "bash scripts/deploy.sh"
     },
     "keywords": [],
     "author": "",
